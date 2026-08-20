@@ -1,0 +1,13 @@
+"""Evaluation Lab: a configuration-sweep experimentation harness for tuning
+and benchmarking a Retrieval-Augmented Generation (RAG) pipeline.
+
+This package lets a user rebuild the retrieval pipeline under different
+settings (chunking strategy/size/overlap, embedding model, retrieval mode,
+reranker, fusion weights, Top-K, generator LLM, synthetic input-noise) over a
+corpus they've already uploaded, run a set of evaluation questions through
+it, and record retrieval-layer, generation-layer, and latency metrics for
+every run so different configurations can be compared side by side.
+
+It never touches the production vector store used by chat: all indexing here
+is ephemeral, in-process, and rebuilt fresh per run.
+"""
