@@ -1,0 +1,25 @@
+# Web framework
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-multipart>=0.0.9
+pydantic>=2.6
+
+# LLM (HuggingFace Inference Providers router — OpenAI-compatible)
+requests>=2.31
+python-dotenv>=1.0
+
+# Retrieval
+sentence-transformers>=2.7      # local semantic embeddings + CrossEncoder reranking (free, no API)
+rank-bm25>=0.2.2                # keyword search
+numpy>=1.26
+
+# Document parsing
+PyMuPDF>=1.24                   # PDFs (imported as `fitz`)
+python-docx>=1.1                # Word documents
+tiktoken>=0.6                   # accurate token counting for chunking
+
+# Vector database (replaces flat numpy/JSONL store)
+qdrant-client>=1.9          # use qdrant-client[fastembed] for optional fast-embed support
+
+# Auth (JWT is signed with stdlib hmac/hashlib — no extra crypto dependency)
+email-validator>=2.1            # backs pydantic's EmailStr
