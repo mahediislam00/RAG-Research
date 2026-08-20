@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RAG Lab — Experiment Console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js" crossorigin="anonymous"></script>
+<style>
+  :root {
+    --bg: #0F1117; --surface: #171B25; --surface-2: #1E2333;
+    --border: #2A3045; --border-strong: #374060; --ink: #E8EAF0; --muted: #7B849E;
+    --accent: #4F7EFF; --accent-dim: rgba(79,126,255,0.12); --accent-border: rgba(79,126,255,0.35);
+    --red: #E05B5B; --red-dim: rgba(224,91,91,0.12);
+    --green: #3DB87A; --green-dim: rgba(61,184,122,0.12);
+    --amber: #D4960A; --amber-dim: rgba(212,150,10,0.12);
+    --purple: #9B7EF0; --purple-dim: rgba(155,126,240,0.12);
+    --serif: 'Merriweather', Georgia, serif; --sans: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --r: 8px; --r-lg: 12px;
+  }
+  [data-theme="light"] {
+    --bg: #F4F6FB; --surface: #FFFFFF; --surface-2: #EEF1F8;
+    --border: #DDE3EF; --border-strong: #C4CCDE; --ink: #111827; --muted: #6B7280;
+    --accent: #2F5FD8; --accent-dim: rgba(47,95,216,0.08); --accent-border: rgba(47,95,216,0.3);
+    --red: #DC2626; --red-dim: rgba(220,38,38,0.08);
+    --green: #16A34A; --green-dim: rgba(22,163,74,0.08);
+    --amber: #B45309; --amber-dim: rgba(180,83,9,0.08);
+    --purple: #7C5CE0; --purple-dim: rgba(124,92,224,0.08);
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body { background: var(--bg); color: var(--ink); font-family: var(--sans); font-size: 13.5px;
+        line-height: 1.55; -webkit-font-smoothing: antialiased; }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  input, select, textarea { font-family: inherit; color: inherit; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  ::selection { background: var(--accent-dim); }
+
+  .topbar { height: 56px; border-bottom: 1px solid var(--border); background: var(--surface);
+           display: flex; align-items: center; padding: 0 20px; gap: 16px; }
+  .brand { font-family: var(--serif); font-weight: 700; font-size: 17px; display: flex; align-items: center; gap: 8px; }
+  .brand span { color: var(--accent); }
+  .brand .tag { font-family: var(--mono); font-size: 10px; letter-spacing: .08em; text-transform: uppercase;
+               color: var(--purple); background: var(--purple-dim); padding: 3px 7px; border-radius: 5px; }
+  .topnav { display: flex; gap: 4px; margin-left: 8px; }
+  .topnav a { font-size: 12.5px; color: var(--muted); padding: 7px 11px; border-radius: var(--r); }
+  .topnav a:hover { background: var(--surface-2); color: var(--ink); text-decoration: none; }
+  .topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .icon-btn { width: 32px; height: 32px; border-radius: 6px; border: 1px solid var(--border);
+             color: var(--muted); display: flex; align-items: center; justify-content: center;
+             font-size: 15px; background: var(--surface-2); }
+  .icon-btn:hover { color: var(--ink); border-color: var(--border-strong); }
+  .who { font-size: 12px; color: var(--muted); }
+  .signout { font-size: 12px; color: var(--muted); border: 1px solid var(--border); border-radius: var(--r);
+            padding: 6px 10px; background: var(--surface-2); }
+  .signout:hover { color: var(--ink); border-color: var(--border-strong); }
+
+  .shell { display: grid; grid-template-columns: 300px 1fr; height: calc(100vh - 56px); }
+  @media (max-width: 900px) { .shell { grid-template-columns: 1fr; height: auto; } }
+
+  .rail { background: var(--surface); border-right: 1px solid var(--border); overflow-y: auto; }
+  .rail-section { padding: 16px 18px; border-bottom: 1px solid var(--border); }
+  .rail-label { font-size: 10px; font-weight: 600; letter-spacing: 0.09em; text-transform: uppercase;
+               color: var(--muted); margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between; }
+  .rail-label .count { color: var(--accent); font-family: var(--mono); }
+  .hint { font-size: 11px; color: var(--muted); line-height: 1.5; margin-top: 6px; }
+
+  .doc-row { display: flex; align-items: flex-start; gap: 8px; padding: 7px 8px; border-radius: var(--r);
+            border: 1px solid transparent; cursor: pointer; }
+  .doc-row:hover { border-color: var(--border); background: var(--surface-2); }
+  .doc-row input { margin-top: 2px; accent-color: var(--accent); flex: none; }
+  .doc-name { font-size: 12px; font-weight: 600; word-break: break-word; }
+  .doc-meta { font-family: var(--mono); font-size: 10px; color: var(--muted); }
+  .empty { font-size: 12px; color: var(--muted); font-style: italic; padding: 4px 0; }
+
+  select, input[type=text], input[type=number], textarea {
+    width: 100%; padding: 8px 10px; background: var(--surface-2); border: 1px solid var(--border);
+    border-radius: var(--r); color: var(--ink); font-size: 12.5px;
+  }
+  select:focus, input:focus, textarea:focus { outline: 2px solid var(--accent-border); outline-offset: 1px; }
+  textarea { resize: vertical; min-height: 70px; font-family: var(--mono); font-size: 11.5px; }
+  label.field { display: block; font-size: 11px; color: var(--muted); margin: 10px 0 4px; }
+  label.field:first-child { margin-top: 0; }
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: var(--r);
+        font-size: 12.5px; font-weight: 600; border: 1px solid var(--border); background: var(--surface-2); }
+  .btn:hover { border-color: var(--border-strong); }
+  .btn.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .btn.primary:hover { opacity: .9; }
+  .btn.primary:disabled { opacity: .5; cursor: default; }
+  .btn.ghost { background: none; }
+  .btn.danger:hover { color: var(--red); border-color: var(--red); background: var(--red-dim); }
+  .btn.small { padding: 5px 9px; font-size: 11px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+
+  .main { overflow-y: auto; padding: 22px 26px 60px; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 20px; border-bottom: 1px solid var(--border); }
+  .tab-btn { padding: 10px 14px; font-size: 13px; font-weight: 600; color: var(--muted);
+            border-bottom: 2px solid transparent; }
+  .tab-btn[aria-selected=true] { color: var(--accent); border-bottom-color: var(--accent); }
+  .tab-panel[hidden] { display: none; }
+
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+         padding: 16px 18px; margin-bottom: 14px; }
+  .card h3 { font-size: 12.5px; font-weight: 700; margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+  .card .sub { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px 14px; }
+
+  .switch-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .switch { position: relative; width: 38px; height: 22px; flex: none; }
+  .switch input { position: absolute; opacity: 0; inset: 0; cursor: pointer; margin: 0; }
+  .switch .track { position: absolute; inset: 0; background: var(--border-strong); border-radius: 11px; transition: .15s; }
+  .switch .thumb { position: absolute; top: 2px; left: 2px; width: 18px; height: 18px; background: #fff;
+                   border-radius: 50%; transition: .15s; }
+  .switch input:checked + .track { background: var(--accent); }
+  .switch input:checked + .track .thumb { transform: translateX(16px); }
+
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .range-val { font-family: var(--mono); font-size: 11px; color: var(--accent); }
+
+  .sweep-box { background: var(--purple-dim); border: 1px solid rgba(155,126,240,0.3); border-radius: var(--r);
+              padding: 12px 14px; margin-top: 4px; }
+  .sweep-box .lbl { font-size: 11px; font-weight: 700; color: var(--purple); text-transform: uppercase;
+                    letter-spacing: .06em; margin-bottom: 8px; }
+
+  .run-log { background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r);
+            padding: 10px 12px; font-family: var(--mono); font-size: 11px; color: var(--muted);
+            max-height: 140px; overflow-y: auto; margin-top: 10px; }
+  .run-log .ok { color: var(--green); }
+  .run-log .err { color: var(--red); }
+  .spinner { width: 13px; height: 13px; border: 2px solid rgba(255,255,255,.35); border-top-color: #fff;
+            border-radius: 50%; animation: spin .7s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+  th { text-align: left; font-size: 10px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted);
+      padding: 8px 8px; border-bottom: 1px solid var(--border); cursor: pointer; white-space: nowrap; position: sticky; top: 0; background: var(--surface); }
+  th:hover { color: var(--ink); }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tr:hover td { background: var(--surface-2); }
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--r-lg); }
+  .mono { font-family: var(--mono); }
+  .metric-cell { color: var(--accent); font-weight: 600; }
+  .badge { display: inline-block; padding: 2px 7px; border-radius: 20px; font-size: 10px; font-weight: 600; }
+  .badge.sweep { background: var(--purple-dim); color: var(--purple); }
+  .badge.err { background: var(--red-dim); color: var(--red); }
+  .badge.ok { background: var(--green-dim); color: var(--green); }
+
+  .chart-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg);
+               padding: 16px 18px; margin-bottom: 16px; }
+  .chart-card h3 { font-size: 12.5px; font-weight: 700; margin-bottom: 2px; }
+  .chart-card .sub { font-size: 11px; color: var(--muted); margin-bottom: 12px; }
+  .chart-controls { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+  .chip-toggle { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: var(--muted);
+                border: 1px solid var(--border); border-radius: 20px; padding: 4px 10px 4px 8px; cursor: pointer; }
+  .chip-toggle input { accent-color: var(--accent); }
+  .chip-toggle.active { color: var(--ink); border-color: var(--accent-border); background: var(--accent-dim); }
+  canvas { max-height: 320px; }
+
+  .empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-state h4 { font-family: var(--serif); font-size: 16px; color: var(--ink); margin-bottom: 6px; }
+  .empty-state p { font-size: 12.5px; max-width: 420px; margin: 0 auto; }
+
+  details.item-detail summary { cursor: pointer; font-size: 11px; color: var(--accent); padding: 4px 0; list-style: none; }
+  details.item-detail summary::-webkit-details-marker { display: none; }
+  details.item-detail summary::before { content: '›  '; }
+  details.item-detail[open] summary::before { content: '↓  '; }
+  .item-detail-body { padding: 8px 0 4px; font-size: 12px; }
+  .item-detail-body .q { font-weight: 600; margin-bottom: 4px; }
+  .item-detail-body .a { color: var(--muted); margin-bottom: 8px; white-space: pre-wrap; }
+  .item-metrics-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+  .item-metric { background: var(--surface-2); border-radius: 6px; padding: 6px 8px; }
+  .item-metric .k { font-size: 9.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .item-metric .v { font-family: var(--mono); font-size: 12px; color: var(--ink); }
+  .run-row { cursor: pointer; }
+  .run-row.selected td { background: var(--accent-dim); }
+
+  .gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center; background: var(--bg); }
+  .gate[hidden] { display: none; }
+  .gate-card { width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--border);
+              border-radius: var(--r-lg); padding: 28px; }
+  .gate-card h1 { font-family: var(--serif); font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+  .gate-card p.sub { color: var(--muted); font-size: 12.5px; margin-bottom: 20px; }
+  .gate-card label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 5px; }
+  .gate-btn { width: 100%; margin-top: 18px; padding: 11px; background: var(--accent); color: #fff;
+             border-radius: var(--r); font-weight: 600; font-size: 13px; }
+  .gate-btn:disabled { opacity: .55; cursor: default; }
+  .gate-switch { margin-top: 14px; text-align: center; font-size: 12.5px; color: var(--muted); }
+  .gate-switch button { color: var(--accent); font-weight: 600; }
+  .gate-err { margin-top: 14px; padding: 9px 11px; background: var(--red-dim); border: 1px solid rgba(224,91,91,.3);
+             border-radius: var(--r); color: var(--red); font-size: 12px; }
+  .gate-err[hidden] { display: none; }
+</style>
+</head>
+<body>
+
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <h1 id="gateTitle">Sign in</h1>
+    <p class="sub">Sign in with your RAG Lab account to start running experiments.</p>
+    <form id="gateForm">
+      <label>Email</label>
+      <input type="text" id="gateEmail" autocomplete="username" required>
+      <label>Password</label>
+      <input type="text" id="gatePassword" autocomplete="current-password" required style="font-family:inherit">
+      <button class="gate-btn" id="gateSubmit" type="submit">Sign in</button>
+    </form>
+    <div class="gate-switch">
+      <span id="gateSwitchText">No account yet?</span>
+      <button id="gateSwitch">Create one</button>
+    </div>
+    <div class="gate-err" id="gateErr" hidden></div>
+  </div>
+</div>
+
+<div class="topbar">
+  <div class="brand">RAG<span>Lab</span> <span class="tag">Experiment Console</span></div>
+  <div class="topnav"><a href="/">&larr; Back to Chat</a></div>
+  <div class="topbar-right">
+    <span class="who" id="whoEmail"></span>
+    <button class="icon-btn" id="themeToggle" title="Toggle theme">&#9789;</button>
+    <button class="signout" id="signOut">Sign out</button>
+  </div>
+</div>
+
+<div class="shell">
+  <aside class="rail">
+    <div class="rail-section">
+      <div class="rail-label">Corpus <span class="count" id="docCount"></span></div>
+      <div id="docList"><div class="empty">Loading documents&hellip;</div></div>
+      <div class="hint">Documents you've already uploaded in Chat. Each run rebuilds a fresh, in-memory index
+        from these under the chosen chunking/embedding config &mdash; the production index is never touched.</div>
+    </div>
+
+    <div class="rail-section">
+      <div class="rail-label">Eval questions</div>
+      <label class="field">Load a saved set</label>
+      <select id="datasetSelect"><option value="">&mdash; none &mdash;</option></select>
+
+      <label class="field">Or paste questions (one per line)</label>
+      <textarea id="questionsBox" placeholder="What is the period of performance?
+How many pages is the technical proposal limited to?
+
+Optional: add |||expected answer after a line for a gold reference."></textarea>
+      <div class="row2" style="margin-top:8px">
+        <input type="text" id="datasetName" placeholder="Name to save as&hellip;">
+        <button class="btn small" id="saveDatasetBtn">Save set</button>
+      </div>
+      <label class="field">Or upload CSV / JSON</label>
+      <input type="file" id="datasetFile" accept=".csv,.json,.txt">
+      <div class="hint">CSV columns: <code class="mono">question, expected_answer, relevant_sections</code>
+        (pipe-separated). Gold fields are optional &mdash; without them, metrics fall back to an embedding-based
+        proxy relevant-set, clearly labeled as such in every result.</div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="tabs">
+      <button class="tab-btn" data-tab="run" aria-selected="true">Configure &amp; Run</button>
+      <button class="tab-btn" data-tab="history" aria-selected="false">Run History</button>
+      <button class="tab-btn" data-tab="compare" aria-selected="false">Compare &amp; Charts</button>
+    </div>
+
+    <section class="tab-panel" id="panel-run">
+      <div class="card">
+        <h3>Chunking</h3>
+        <div class="sub">RQ1 &mdash; how document splitting affects retrieval- vs. generation-layer metrics.</div>
+        <div class="card-grid">
+          <div><label class="field">Strategy</label>
+            <select id="cfg_chunking_strategy"></select></div>
+          <div><label class="field">Target tokens/chunk</label>
+            <input type="number" id="cfg_chunk_target_tokens" value="750" min="50" step="50" list="chunkPresets">
+            <datalist id="chunkPresets"></datalist></div>
+          <div><label class="field">Overlap tokens</label>
+            <input type="number" id="cfg_chunk_overlap_tokens" value="150" min="0" step="10"></div>
+          <div><label class="field">Min tokens (discard below)</label>
+            <input type="number" id="cfg_chunk_min_tokens" value="80" min="1" step="10"></div>
+        </div>
+        <div class="hint" id="chunkingStrategyHint">Fixed-size packs raw text into token windows. Sentence and recursive
+          respect sentence/paragraph boundaries. Semantic embeds each sentence and cuts wherever adjacent sentences
+          stop being similar &mdash; slower to build, since it requires an embedding pass per document.</div>
+      </div>
+
+      <div class="card">
+        <h3>Embedding</h3>
+        <div class="sub">RQ2 &mdash; embedding model choice vs. retrieval-layer metrics.</div>
+        <div class="card-grid">
+          <div><label class="field">Model</label>
+            <select id="cfg_embed_model"></select></div>
+          <div id="embedCustomWrap" style="display:none">
+            <label class="field">Custom model id</label>
+            <input type="text" id="cfg_embed_model_custom" placeholder="org/model-name"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Retrieval &amp; fusion</h3>
+        <div class="sub">Retrieval mode is a technique axis (dense / sparse / hybrid / diversity-aware); Top-K is
+          retrieval depth; dense/sparse weights tilt hybrid fusion toward meaning vs. exact tokens.</div>
+        <div class="card-grid">
+          <div><label class="field">Retrieval mode</label>
+            <select id="cfg_retrieval_mode"></select></div>
+          <div><label class="field">Top-K to generator (final_k)</label>
+            <input type="number" id="cfg_final_k" value="8" min="1" list="topkPresets">
+            <datalist id="topkPresets"></datalist></div>
+        </div>
+        <div class="card-grid" style="margin-top:12px">
+          <div><label class="field">Dense candidates (dense_k)</label>
+            <input type="number" id="cfg_dense_k" value="25" min="1"></div>
+          <div><label class="field">Sparse candidates (sparse_k)</label>
+            <input type="number" id="cfg_sparse_k" value="25" min="1"></div>
+          <div><label class="field">RRF constant (rrf_k)</label>
+            <input type="number" id="cfg_rrf_k" value="60" min="1"></div>
+        </div>
+        <div class="card-grid" style="margin-top:12px">
+          <div><label class="field">Dense weight <span class="range-val" id="dw_val">1.0</span></label>
+            <input type="range" id="cfg_dense_weight" min="0" max="2" step="0.1" value="1.0"></div>
+          <div><label class="field">Sparse (BM25) weight <span class="range-val" id="sw_val">1.0</span></label>
+            <input type="range" id="cfg_sparse_weight" min="0" max="2" step="0.1" value="1.0"></div>
+          <div id="mmrLambdaWrap" style="display:none"><label class="field">MMR &lambda; (relevance&harr;diversity) <span class="range-val" id="mmr_val">0.50</span></label>
+            <input type="range" id="cfg_mmr_lambda" min="0" max="1" step="0.05" value="0.5"></div>
+        </div>
+        <div class="hint" id="retrievalModeHint">Dense/sparse only ignore the other signal entirely. Hybrid modes
+          combine both (RRF fuses by rank position; weighted fuses by normalized score margin). MMR reranks the dense
+          candidate pool to trade relevance for diversity &mdash; &lambda;=1 is plain dense ranking, &lambda;=0
+          maximizes diversity.</div>
+      </div>
+
+      <div class="card">
+        <h3>Reranking</h3>
+        <div class="sub">Quality gain vs. latency cost of adding a cross-encoder reranker on top of whichever
+          retrieval mode is selected above.</div>
+        <div class="card-grid">
+          <div><label class="field">Reranker</label>
+            <select id="cfg_reranker_model"></select></div>
+          <div><label class="field">Candidate pool before truncating to Top-K</label>
+            <input type="number" id="cfg_rerank_pool" value="20" min="1"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Generator LLM</h3>
+        <div class="sub">RQ3 &mdash; generator choice vs. faithfulness/accuracy, holding retrieval fixed. Free
+          HuggingFace models and paid OpenRouter models can be benchmarked side by side.</div>
+        <div class="card-grid">
+          <div><label class="field">Model</label>
+            <select id="cfg_llm_model_id"></select></div>
+          <div><label class="field">Temperature <span class="range-val" id="temp_val">0.0</span></label>
+            <input type="range" id="cfg_temperature" min="0" max="1" step="0.05" value="0"></div>
+          <div><label class="field">Max output tokens</label>
+            <input type="number" id="cfg_max_tokens" value="700" min="50" step="50"></div>
+        </div>
+        <div class="hint" id="paidModelWarning" style="display:none;color:var(--amber)">&#9888; This is a paid
+          OpenRouter model &mdash; every question in this run (and every value in a sweep) makes a real, billed API
+          call. Check pricing at openrouter.ai/models before running large question sets or sweeps.</div>
+        <div class="hint" id="openrouterMissingWarning" style="display:none;color:var(--red)">OpenRouter models are
+          listed but OPENROUTER_API_KEY is not set on the server &mdash; runs using them will fail with a clear error.
+          Add a key to .env and restart to enable them.</div>
+      </div>
+
+      <div class="card">
+        <h3>Input quality</h3>
+        <div class="sub">Injects synthetic noise into the tail of the retrieved context &mdash; the input-type/quality axis
+          (OHRBench / RAGUARD-style ablation): what happens when some retrieved evidence is irrelevant?</div>
+        <label class="field">Injected noise <span class="range-val" id="noise_val">0%</span></label>
+        <input type="range" id="cfg_noise_pct" min="0" max="100" step="5" value="0">
+      </div>
+
+      <div class="card">
+        <h3>Metric settings</h3>
+        <div class="card-grid">
+          <div><label class="field">Faithfulness mode</label>
+            <select id="cfg_faithfulness_mode"></select></div>
+          <div><label class="field">Silver relevance set size</label>
+            <input type="number" id="cfg_silver_relevance_k" value="5" min="1"></div>
+        </div>
+        <div class="switch-row" style="margin-top:12px">
+          <div>
+            <div style="font-size:12.5px;font-weight:600">Use LLM-as-judge for relevance</div>
+            <div class="hint" style="margin-top:2px">Labels each retrieved passage YES/NO via the generator LLM
+              instead of the embedding-based proxy. Costs one extra HF inference call per passage per question.</div>
+          </div>
+          <label class="switch"><input type="checkbox" id="cfg_use_llm_judge">
+            <span class="track"><span class="thumb"></span></span></label>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Run</h3>
+        <label class="field">Run label (optional)</label>
+        <input type="text" id="cfg_label" placeholder="auto-generated from config if left blank">
+
+        <div class="sweep-box" style="margin-top:14px">
+          <div class="lbl">Sweep mode</div>
+          <div class="row2">
+            <div><label class="field" style="margin-top:0">Axis to sweep</label>
+              <select id="sweepAxis"></select></div>
+            <div><label class="field" style="margin-top:0">Values (comma-separated)</label>
+              <input type="text" id="sweepValues" placeholder="e.g. 400,800,1600,3200"></div>
+          </div>
+          <div class="hint" id="sweepHint">Runs one experiment per value, holding every other setting fixed, and
+            tags them with a shared sweep so Compare &amp; Charts can plot metric vs. value.</div>
+        </div>
+
+        <button class="btn primary" id="runBtn" style="margin-top:16px;width:100%;justify-content:center">
+          Run experiment
+        </button>
+        <div class="run-log" id="runLog" style="display:none"></div>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="panel-history" hidden>
+      <div class="card" style="display:flex;align-items:center;gap:10px;justify-content:space-between">
+        <div style="font-size:12px;color:var(--muted)">
+          <span id="runCount">0</span> run(s) recorded. Select rows to compare in the next tab.
+        </div>
+        <div style="display:flex;gap:8px">
+          <select id="sweepFilter" style="width:auto"><option value="">All runs</option></select>
+          <button class="btn small" id="refreshRunsBtn">Refresh</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table id="runsTable">
+          <thead><tr>
+            <th></th><th data-k="label">Run</th><th data-k="chunkStrategy">Strategy</th><th data-k="chunk">Chunk</th><th data-k="embed">Embedding</th>
+            <th data-k="retrieval">Retrieval</th><th data-k="reranker">Reranker</th><th data-k="topk">Top-K</th><th data-k="llm">LLM</th>
+            <th data-k="noise">Noise</th>
+            <th data-k="recall_at_k">Recall@k</th><th data-k="ndcg_at_k">NDCG@k</th><th data-k="mrr">MRR</th>
+            <th data-k="context_precision">Ctx.Prec</th><th data-k="faithfulness">Faithful.</th>
+            <th data-k="answer_relevance">Ans.Rel</th><th data-k="composite_score">Composite</th>
+            <th data-k="total_ms">Latency (ms)</th><th data-k="created_at">When</th><th></th>
+          </tr></thead>
+          <tbody id="runsBody"></tbody>
+        </table>
+      </div>
+      <div class="empty-state" id="runsEmpty" style="display:none">
+        <h4>No runs yet</h4>
+        <p>Configure a run in the first tab and press "Run experiment" &mdash; results will appear here.</p>
+      </div>
+      <div id="runDetailContainer"></div>
+    </section>
+
+    <section class="tab-panel" id="panel-compare" hidden>
+      <div id="compareEmpty" class="empty-state">
+        <h4>Select runs to compare</h4>
+        <p>Run a sweep, or check rows in Run History, then come back here. The metric-vs-configuration chart
+          appears automatically after any sweep.</p>
+      </div>
+      <div id="compareContent" style="display:none">
+
+        <div class="chart-card">
+          <h3>Metric vs. configuration value</h3>
+          <div class="sub" id="sweepChartSub">Shown when the selected runs share a sweep axis.</div>
+          <div class="chart-controls" id="metricToggleRow"></div>
+          <canvas id="sweepChart" height="90"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Retrieval-layer vs. generation-layer metrics</h3>
+          <div class="sub">Do the two metric families move together under the same configuration change, or diverge? (averages: Recall@k, NDCG@k, MRR, Context Precision vs. Faithfulness, Answer Relevance)</div>
+          <canvas id="divergenceChart" height="100"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Compare selected runs &mdash; all metrics</h3>
+          <div class="sub">Grouped bars, one group per run, normalized 0&ndash;1.</div>
+          <canvas id="compareChart" height="100"></canvas>
+        </div>
+
+        <div class="chart-card">
+          <h3>Latency vs. quality</h3>
+          <div class="sub">X = total latency (ms), Y = composite score. Bubble size = faithfulness.</div>
+          <canvas id="latencyChart" height="100"></canvas>
+        </div>
+
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const $$ = s => Array.from(document.querySelectorAll(s));
+
+const state = {
+  token: null, email: null,
+  documents: [], selectedDocs: new Set(),
+  datasets: [], options: null,
+  runs: [], selectedRunIds: new Set(),
+  lastSweepId: null,
+  charts: {},
+};
+
+const TOKEN_KEY = "raglab.token", EMAIL_KEY = "raglab.email";
+
+function setSession(token, email) {
+  state.token = token; state.email = email;
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(EMAIL_KEY, email);
+  $("#whoEmail").textContent = email;
+}
+function clearSession() {
+  state.token = null; state.email = null;
+  sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(EMAIL_KEY);
+}
+async function api(path, opts = {}) {
+  const headers = new Headers(opts.headers || {});
+  if (state.token) headers.set("Authorization", "Bearer " + state.token);
+  const r = await fetch(path, { ...opts, headers });
+  if (r.status === 401) { clearSession(); showGate(); throw new Error("Session ended. Sign in again."); }
+  return r;
+}
+async function apiJSON(path, opts = {}) {
+  const r = await api(path, opts);
+  const body = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(body.detail ? JSON.stringify(body.detail) : (r.statusText || "Request failed"));
+  return body;
+}
+
+function showGate() { $("#gate").hidden = false; }
+function hideGate() { $("#gate").hidden = true; }
+
+let gateMode = "login";
+$("#gateSwitch").addEventListener("click", () => {
+  gateMode = gateMode === "login" ? "register" : "login";
+  $("#gateTitle").textContent = gateMode === "login" ? "Sign in" : "Create account";
+  $("#gateSubmit").textContent = gateMode === "login" ? "Sign in" : "Create account";
+  $("#gateSwitchText").textContent = gateMode === "login" ? "No account yet?" : "Already have an account?";
+  $("#gateSwitch").textContent = gateMode === "login" ? "Create one" : "Sign in";
+});
+$("#gateForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const email = $("#gateEmail").value.trim(), password = $("#gatePassword").value;
+  const errBox = $("#gateErr"); errBox.hidden = true;
+  $("#gateSubmit").disabled = true;
+  try {
+    const path = gateMode === "login" ? "/api/auth/login" : "/api/auth/register";
+    const r = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ email, password }) });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.detail || "Sign-in failed");
+    setSession(body.token, body.user.email);
+    hideGate();
+    boot();
+  } catch (err) {
+    errBox.textContent = err.message; errBox.hidden = false;
+  } finally {
+    $("#gateSubmit").disabled = false;
+  }
+});
+$("#signOut").addEventListener("click", async () => {
+  try { await api("/api/auth/logout", { method: "POST" }); } catch (e) {}
+  clearSession(); location.reload();
+});
+
+$("#themeToggle").addEventListener("click", () => {
+  const html = document.documentElement;
+  const isDark = html.dataset.theme === "dark";
+  html.dataset.theme = isDark ? "light" : "dark";
+});
+
+$$(".tab-btn").forEach(btn => btn.addEventListener("click", () => {
+  $$(".tab-btn").forEach(b => b.setAttribute("aria-selected", b === btn ? "true" : "false"));
+  const tab = btn.dataset.tab;
+  $("#panel-run").hidden = tab !== "run";
+  $("#panel-history").hidden = tab !== "history";
+  $("#panel-compare").hidden = tab !== "compare";
+  if (tab === "history") loadRuns();
+  if (tab === "compare") renderCompare();
+}));
+
+function bindRange(id, labelId, fmt) {
+  const el = $(id), lbl = $(labelId);
+  const upd = () => lbl.textContent = fmt(el.value);
+  el.addEventListener("input", upd); upd();
+}
+bindRange("#cfg_dense_weight", "#dw_val", v => Number(v).toFixed(1));
+bindRange("#cfg_sparse_weight", "#sw_val", v => Number(v).toFixed(1));
+bindRange("#cfg_temperature", "#temp_val", v => Number(v).toFixed(2));
+bindRange("#cfg_noise_pct", "#noise_val", v => v + "%");
+bindRange("#cfg_mmr_lambda", "#mmr_val", v => Number(v).toFixed(2));
+
+function renderDocs() {
+  const wrap = $("#docList");
+  if (!state.documents.length) { wrap.innerHTML = '<div class="empty">No documents yet &mdash; upload some in Chat first.</div>'; $("#docCount").textContent = ""; return; }
+  $("#docCount").textContent = state.selectedDocs.size + "/" + state.documents.length;
+  wrap.innerHTML = state.documents.map(d => `
+    <label class="doc-row">
+      <input type="checkbox" data-id="${esc(d.document_id)}" ${state.selectedDocs.has(d.document_id) ? "checked" : ""}>
+      <div>
+        <div class="doc-name">${esc(d.filename)}</div>
+        <div class="doc-meta">${d.pages}p &middot; ${d.chunks} prod. chunks</div>
+      </div>
+    </label>`).join("");
+  wrap.querySelectorAll("input[type=checkbox]").forEach(cb => cb.addEventListener("change", () => {
+    if (cb.checked) state.selectedDocs.add(cb.dataset.id); else state.selectedDocs.delete(cb.dataset.id);
+    $("#docCount").textContent = state.selectedDocs.size + "/" + state.documents.length;
+  }));
+}
+
+function fillSelect(sel, items, valueKey, labelKey) {
+  valueKey = valueKey || "id"; labelKey = labelKey || "label";
+  sel.innerHTML = items.map(it => `<option value="${esc(it[valueKey])}">${esc(it[labelKey])}</option>`).join("");
+}
+
+function fillLlmSelect(sel, freeModels, paidModels, openrouterConfigured) {
+  const freeOpts = freeModels.map(m => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("");
+  const paidLabel = openrouterConfigured ? "Paid (OpenRouter)" : "Paid (OpenRouter \u2014 no API key set)";
+  const paidOpts = paidModels.map(m => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join("");
+  sel.innerHTML = `<optgroup label="Free (HuggingFace)">${freeOpts}</optgroup>` +
+                  `<optgroup label="${esc(paidLabel)}">${paidOpts}</optgroup>`;
+}
+
+async function loadOptions() {
+  const opts = await apiJSON("/api/eval/options");
+  state.options = opts;
+  state.documents = opts.documents;
+  if (!state.selectedDocs.size) opts.documents.forEach(d => state.selectedDocs.add(d.document_id));
+  renderDocs();
+
+  fillSelect($("#cfg_embed_model"), opts.embedding_presets.concat([{ id: "__custom__", label: "Custom\u2026" }]));
+  $("#cfg_embed_model").addEventListener("change", () => {
+    $("#embedCustomWrap").style.display = $("#cfg_embed_model").value === "__custom__" ? "" : "none";
+  });
+  fillSelect($("#cfg_reranker_model"), opts.reranker_presets);
+  fillSelect($("#cfg_chunking_strategy"), opts.chunking_strategies);
+  fillSelect($("#cfg_retrieval_mode"), opts.retrieval_modes);
+  $("#cfg_retrieval_mode").addEventListener("change", () => {
+    $("#mmrLambdaWrap").style.display = $("#cfg_retrieval_mode").value === "mmr" ? "" : "none";
+  });
+
+  fillLlmSelect($("#cfg_llm_model_id"), opts.llm_models, opts.openrouter_models, opts.openrouter_configured);
+  $("#cfg_llm_model_id").addEventListener("change", updateLlmWarnings);
+  function updateLlmWarnings() {
+    const val = $("#cfg_llm_model_id").value;
+    const isPaid = val.startsWith("openrouter:");
+    $("#paidModelWarning").style.display = isPaid ? "" : "none";
+    $("#openrouterMissingWarning").style.display = (isPaid && !opts.openrouter_configured) ? "" : "none";
+  }
+  updateLlmWarnings();
+
+  fillSelect($("#cfg_faithfulness_mode"), opts.faithfulness_modes);
+  fillSelect($("#sweepAxis"), opts.sweepable_axes);
+  $("#chunkPresets").innerHTML = opts.chunking_presets.map(v => `<option value="${v}">`).join("");
+  $("#topkPresets").innerHTML = opts.topk_presets.map(v => `<option value="${v}">`).join("");
+}
+
+async function loadDatasets() {
+  const r = await apiJSON("/api/eval/datasets");
+  state.datasets = r.datasets;
+  const sel = $("#datasetSelect");
+  sel.innerHTML = '<option value="">&mdash; none &mdash;</option>' +
+    r.datasets.map(d => `<option value="${esc(d.dataset_id)}">${esc(d.name)} (${d.n_questions})</option>`).join("");
+}
+$("#saveDatasetBtn").addEventListener("click", async () => {
+  const questions = parsePastedQuestions($("#questionsBox").value);
+  const name = $("#datasetName").value.trim() || ("dataset-" + new Date().toISOString().slice(0,16));
+  if (!questions.length) { alert("Paste at least one question first."); return; }
+  try {
+    const r = await apiJSON("/api/eval/datasets", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, questions }) });
+    await loadDatasets();
+    $("#datasetSelect").value = r.dataset_id;
+    $("#datasetName").value = "";
+  } catch (e) { alert("Could not save dataset: " + e.message); }
+});
+$("#datasetFile").addEventListener("change", async () => {
+  const file = $("#datasetFile").files[0];
+  if (!file) return;
+  const form = new FormData(); form.append("file", file);
+  try {
+    const r = await api("/api/eval/datasets/upload?name=" + encodeURIComponent(file.name), { method: "POST", body: form });
+    const body = await r.json();
+    if (!r.ok) throw new Error(body.detail || "upload failed");
+    await loadDatasets();
+    $("#datasetSelect").value = body.dataset_id;
+  } catch (e) { alert("Could not parse file: " + e.message); }
+  $("#datasetFile").value = "";
+});
+
+function parsePastedQuestions(text) {
+  return text.split("\n").map(l => l.trim()).filter(Boolean).map(line => {
+    const parts = line.split("|||").map(s => s && s.trim());
+    return parts[1] ? { question: parts[0], expected_answer: parts[1] } : { question: parts[0] };
+  });
+}
+
+function collectConfig() {
+  let embedModel = $("#cfg_embed_model").value;
+  if (embedModel === "__custom__") embedModel = $("#cfg_embed_model_custom").value.trim() || "BAAI/bge-small-en-v1.5";
+  return {
+    chunking_strategy: $("#cfg_chunking_strategy").value,
+    chunk_target_tokens: Number($("#cfg_chunk_target_tokens").value),
+    chunk_overlap_tokens: Number($("#cfg_chunk_overlap_tokens").value),
+    chunk_min_tokens: Number($("#cfg_chunk_min_tokens").value),
+    embed_model: embedModel,
+    retrieval_mode: $("#cfg_retrieval_mode").value,
+    dense_k: Number($("#cfg_dense_k").value),
+    sparse_k: Number($("#cfg_sparse_k").value),
+    final_k: Number($("#cfg_final_k").value),
+    rrf_k: Number($("#cfg_rrf_k").value),
+    dense_weight: Number($("#cfg_dense_weight").value),
+    sparse_weight: Number($("#cfg_sparse_weight").value),
+    mmr_lambda: Number($("#cfg_mmr_lambda").value),
+    reranker_model: $("#cfg_reranker_model").value,
+    rerank_pool: Number($("#cfg_rerank_pool").value),
+    llm_model_id: $("#cfg_llm_model_id").value,
+    temperature: Number($("#cfg_temperature").value),
+    max_tokens: Number($("#cfg_max_tokens").value),
+    noise_pct: Number($("#cfg_noise_pct").value) / 100,
+    faithfulness_mode: $("#cfg_faithfulness_mode").value,
+    silver_relevance_k: Number($("#cfg_silver_relevance_k").value),
+    use_llm_judge: $("#cfg_use_llm_judge").checked,
+    label: $("#cfg_label").value.trim(),
+  };
+}
+
+function logLine(msg, cls) {
+  const box = $("#runLog"); box.style.display = "block";
+  const div = document.createElement("div");
+  if (cls) div.className = cls;
+  div.textContent = msg;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+}
+$("#runBtn").addEventListener("click", async () => {
+  const docIds = Array.from(state.selectedDocs);
+  if (!docIds.length) { alert("Select at least one document in the Corpus panel."); return; }
+
+  const datasetId = $("#datasetSelect").value;
+  const inlineQuestions = parsePastedQuestions($("#questionsBox").value);
+  if (!datasetId && !inlineQuestions.length) {
+    alert("Load a saved question set, or paste questions in the left panel."); return;
+  }
+
+  const sweepAxis = $("#sweepAxis").value || "none";
+  const sweepValuesRaw = $("#sweepValues").value.trim();
+  let sweepValues = null;
+  if (sweepAxis !== "none") {
+    if (!sweepValuesRaw) { alert("Enter comma-separated values to sweep, or set the sweep axis to 'No sweep'."); return; }
+    sweepValues = sweepValuesRaw.split(",").map(s => s.trim()).filter(Boolean).map(v => {
+      const n = Number(v);
+      return (Number.isFinite(n) && v !== "" && /^[\d.]+$/.test(v)) ? n : v;
+    });
+  }
+
+  const payload = { doc_ids: docIds, config: collectConfig(), sweep_axis: sweepAxis };
+  if (sweepValues) payload.sweep_values = sweepValues;
+  if (datasetId) payload.dataset_id = datasetId; else payload.questions = inlineQuestions;
+
+  const btn = $("#runBtn");
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Running\u2026';
+  $("#runLog").innerHTML = ""; $("#runLog").style.display = "block";
+  logLine(sweepValues ? ("Starting sweep over " + sweepAxis + ": " + sweepValues.join(", ")) : "Starting single run\u2026");
+  const t0 = performance.now();
+
+  try {
+    const result = await apiJSON("/api/eval/run", { method: "POST",
+      headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    for (const run of result.runs) {
+      if (run.error && !run.summary) {
+        logLine("\u2717 " + (run.sweep_value !== undefined ? run.sweep_value + ": " : "") + run.error, "err");
+      } else {
+        const s = run.summary;
+        logLine("\u2713 " + run.label + " \u2014 recall@k " + fmtStat(s.recall_at_k) + ", ndcg " + fmtStat(s.ndcg_at_k) +
+               ", faithfulness " + fmtStat(s.faithfulness) + ", latency " + fmtStat(s.total_ms) + "ms", "ok");
+      }
+    }
+    logLine("Done in " + secs + "s.");
+    state.lastSweepId = result.sweep_id;
+    await loadRuns();
+    state.selectedRunIds = new Set(state.runs.filter(r => r.sweep_id === result.sweep_id).map(r => r.run_id));
+    $$(".tab-btn").forEach(b => b.setAttribute("aria-selected", b.dataset.tab === "compare" ? "true" : "false"));
+    $("#panel-run").hidden = true; $("#panel-history").hidden = true; $("#panel-compare").hidden = false;
+    renderCompare();
+  } catch (e) {
+    logLine("\u2717 " + e.message, "err");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Run experiment";
+  }
+});
+function fmtStat(stat) { return (stat && stat.mean != null) ? stat.mean.toFixed(3) : "\u2014"; }
+
+function configSummary(cfg) {
+  const rr = (!cfg.reranker_model || cfg.reranker_model === "none") ? "off" : cfg.reranker_model.split("/").pop();
+  return {
+    chunkStrategy: cfg.chunking_strategy || "fixed",
+    chunk: cfg.chunk_target_tokens + "/" + cfg.chunk_overlap_tokens,
+    embed: (cfg.embed_model || "").split("/").pop(),
+    retrieval: cfg.retrieval_mode || "hybrid_rrf",
+    reranker: rr,
+    topk: cfg.final_k,
+    llm: (cfg.llm_model_id || "").replace("openrouter:", "$").replace("hf:", ""),
+    noise: Math.round((cfg.noise_pct || 0) * 100) + "%",
+  };
+}
+async function loadRuns() {
+  const r = await apiJSON("/api/eval/runs");
+  state.runs = r.runs;
+  renderSweepFilter();
+  renderRunsTable();
+}
+function renderSweepFilter() {
+  const sweeps = Array.from(new Set(state.runs.map(r => r.sweep_id).filter(Boolean)));
+  const sel = $("#sweepFilter");
+  const current = sel.value;
+  sel.innerHTML = '<option value="">All runs</option>' +
+    sweeps.map(id => {
+      const sample = state.runs.find(r => r.sweep_id === id);
+      const axisLabel = sample && sample.sweep_axis !== "none" ? sample.sweep_axis : "single";
+      return `<option value="${esc(id)}">${esc(axisLabel)} &middot; ${esc(id.slice(0,14))}</option>`;
+    }).join("");
+  sel.value = current;
+}
+$("#sweepFilter").addEventListener("change", renderRunsTable);
+$("#refreshRunsBtn").addEventListener("click", loadRuns);
+
+let sortKey = "created_at", sortDir = -1;
+function renderRunsTable() {
+  const filterSweep = $("#sweepFilter").value;
+  let rows = state.runs.filter(r => !filterSweep || r.sweep_id === filterSweep);
+  $("#runCount").textContent = state.runs.length;
+  $("#runsEmpty").style.display = rows.length ? "none" : "block";
+
+  const getVal = (r, k) => {
+    const s = r.summary || {};
+    const cs = configSummary(r.config);
+    if (k in cs) return cs[k];
+    if (k === "label") return r.label;
+    if (k === "created_at") return r.created_at;
+    const stat = s[k];
+    return (stat && stat.mean != null) ? stat.mean : -Infinity;
+  };
+  rows = rows.slice().sort((a, b) => {
+    const av = getVal(a, sortKey), bv = getVal(b, sortKey);
+    if (typeof av === "string") return av.localeCompare(bv) * sortDir;
+    return (av - bv) * sortDir;
+  });
+
+  $("#runsBody").innerHTML = rows.map(r => {
+    const s = r.summary || {};
+    const cs = configSummary(r.config);
+    const failed = r.status === "error";
+    return `<tr class="run-row ${state.selectedRunIds.has(r.run_id) ? "selected" : ""}" data-id="${esc(r.run_id)}">
+      <td><input type="checkbox" class="run-select" data-id="${esc(r.run_id)}" ${state.selectedRunIds.has(r.run_id) ? "checked" : ""}></td>
+      <td>${esc(r.label)} ${(r.sweep_axis && r.sweep_axis !== "none") ? ('<span class="badge sweep">' + esc(r.sweep_axis) + '</span>') : ""}
+          ${failed ? '<span class="badge err">error</span>' : ""}</td>
+      <td class="mono">${esc(cs.chunkStrategy)}</td>
+      <td class="mono">${esc(cs.chunk)}</td>
+      <td class="mono">${esc(cs.embed)}</td>
+      <td class="mono">${esc(cs.retrieval)}</td>
+      <td class="mono">${esc(cs.reranker)}</td>
+      <td class="mono">${esc(String(cs.topk))}</td>
+      <td class="mono">${esc(cs.llm)}</td>
+      <td class="mono">${esc(cs.noise)}</td>
+      <td class="metric-cell">${fmtStat(s.recall_at_k)}</td>
+      <td class="metric-cell">${fmtStat(s.ndcg_at_k)}</td>
+      <td class="metric-cell">${fmtStat(s.mrr)}</td>
+      <td class="metric-cell">${fmtStat(s.context_precision)}</td>
+      <td class="metric-cell">${fmtStat(s.faithfulness)}</td>
+      <td class="metric-cell">${fmtStat(s.answer_relevance)}</td>
+      <td class="metric-cell">${fmtStat(s.composite_score)}</td>
+      <td class="mono">${(s.total_ms && s.total_ms.mean != null) ? s.total_ms.mean.toFixed(0) : "\u2014"}</td>
+      <td class="mono">${new Date(r.created_at * 1000).toLocaleTimeString()}</td>
+      <td>
+        <a href="/api/eval/runs/${esc(r.run_id)}/export.csv?token=${encodeURIComponent(state.token)}" title="Export CSV">&#8659;</a>
+        &nbsp;<button class="btn small danger run-del" data-id="${esc(r.run_id)}" title="Delete">&#10005;</button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  $("#runsBody").querySelectorAll(".run-select").forEach(cb => cb.addEventListener("change", (e) => {
+    e.stopPropagation();
+    if (cb.checked) state.selectedRunIds.add(cb.dataset.id); else state.selectedRunIds.delete(cb.dataset.id);
+    cb.closest("tr").classList.toggle("selected", cb.checked);
+  }));
+  $("#runsBody").querySelectorAll(".run-del").forEach(btn => btn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    if (!confirm("Delete this run?")) return;
+    await api("/api/eval/runs/" + btn.dataset.id, { method: "DELETE" });
+    state.selectedRunIds.delete(btn.dataset.id);
+    await loadRuns();
+  }));
+  $("#runsBody").querySelectorAll("tr.run-row").forEach(tr => tr.addEventListener("click", (e) => {
+    if (e.target.closest("input,button,a")) return;
+    toggleRunDetail(tr.dataset.id, tr);
+  }));
+}
+$$("th[data-k]").forEach(th => th.addEventListener("click", () => {
+  const k = th.dataset.k;
+  sortDir = (sortKey === k) ? -sortDir : -1;
+  sortKey = k;
+  renderRunsTable();
+}));
+
+let openDetailRunId = null;
+async function toggleRunDetail(runId, tr) {
+  const container = $("#runDetailContainer");
+  if (openDetailRunId === runId) { container.innerHTML = ""; openDetailRunId = null; return; }
+  container.innerHTML = '<div class="hint">Loading&hellip;</div>';
+  openDetailRunId = runId;
+  const detail = await apiJSON("/api/eval/runs/" + runId);
+  container.innerHTML = '<div class="card" style="margin-top:14px">' +
+    '<h3>Run detail \u2014 ' + esc(detail.label) + '</h3>' +
+    '<div class="sub">' + detail.items.length + ' question(s)</div>' +
+    detail.items.map(it => {
+      const metricsHtml = Object.entries(it.metrics || {})
+        .filter(([k,v]) => v !== null && typeof v !== "object" && k !== "generation_error")
+        .map(([k,v]) => '<div class="item-metric"><div class="k">' + esc(k) + '</div><div class="v">' +
+             (typeof v === "number" ? v.toFixed(3) : esc(String(v))) + '</div></div>').join("");
+      return '<details class="item-detail"><summary>' + esc(it.question) + '</summary>' +
+        '<div class="item-detail-body"><div class="a">' + esc(it.answer || "(no answer)") +
+        (it.error ? ('<br><span style="color:var(--red)">Error: ' + esc(it.error) + '</span>') : "") + '</div>' +
+        '<div class="item-metrics-grid">' + metricsHtml + '</div></div></details>';
+    }).join("") + '</div>';
+}
+
+const METRIC_DEFS = [
+  { key: "recall_at_k", label: "Recall@k", family: "retrieval" },
+  { key: "ndcg_at_k", label: "NDCG@k", family: "retrieval" },
+  { key: "mrr", label: "MRR", family: "retrieval" },
+  { key: "context_precision", label: "Context Precision", family: "retrieval" },
+  { key: "diversity", label: "Diversity", family: "retrieval" },
+  { key: "faithfulness", label: "Faithfulness", family: "generation" },
+  { key: "answer_relevance", label: "Answer Relevance", family: "generation" },
+  { key: "composite_score", label: "Composite", family: "generation" },
+];
+let activeSweepMetrics = new Set(["ndcg_at_k", "faithfulness"]);
+
+function destroyChart(id) { if (state.charts[id]) { state.charts[id].destroy(); delete state.charts[id]; } }
+
+function selectedRuns() {
+  return state.runs.filter(r => state.selectedRunIds.has(r.run_id) && r.summary);
+}
+
+function renderCompare() {
+  const runs = selectedRuns();
+  if (!runs.length) {
+    $("#compareEmpty").style.display = "block";
+    $("#compareContent").style.display = "none";
+    return;
+  }
+  $("#compareEmpty").style.display = "none";
+  $("#compareContent").style.display = "block";
+
+  renderSweepChart(runs);
+  renderDivergenceChart(runs);
+  renderCompareChart(runs);
+  renderLatencyChart(runs);
+}
+
+function renderSweepChart(runs) {
+  const bySweep = {};
+  runs.forEach(r => { (bySweep[r.sweep_id] = bySweep[r.sweep_id] || []).push(r); });
+  const sweepIds = Object.keys(bySweep).filter(id =>
+    bySweep[id][0].sweep_axis && bySweep[id][0].sweep_axis !== "none" && bySweep[id].length > 1);
+
+  const controls = $("#metricToggleRow");
+  controls.innerHTML = METRIC_DEFS.map(m =>
+    '<label class="chip-toggle ' + (activeSweepMetrics.has(m.key) ? "active" : "") + '">' +
+    '<input type="checkbox" data-m="' + m.key + '" ' + (activeSweepMetrics.has(m.key) ? "checked" : "") + '> ' +
+    esc(m.label) + '</label>').join("");
+  controls.querySelectorAll("input").forEach(cb => cb.addEventListener("change", () => {
+    if (cb.checked) activeSweepMetrics.add(cb.dataset.m); else activeSweepMetrics.delete(cb.dataset.m);
+    renderSweepChart(selectedRuns());
+  }));
+
+  destroyChart("sweepChart");
+  const canvas = $("#sweepChart");
+  if (!sweepIds.length) {
+    $("#sweepChartSub").textContent = "Select 2+ runs from the same sweep (Run History) to see this chart, or run a sweep from the Configure tab.";
+    return;
+  }
+  const sweepId = sweepIds[0];
+  const group = bySweep[sweepId].slice().sort((a, b) => {
+    const axis = a.sweep_axis;
+    const av = a.config[axis], bv = b.config[axis];
+    return (typeof av === "number" && typeof bv === "number") ? av - bv : String(av).localeCompare(String(bv));
+  });
+  const axis = group[0].sweep_axis;
+  $("#sweepChartSub").textContent = "Sweep axis: " + axis + " (" + group.length + " values)";
+  const labels = group.map(r => String(r.config[axis]));
+  const colors = ["#4F7EFF", "#3DB87A", "#D4960A", "#E05B5B", "#9B7EF0", "#2FBFC4"];
+  const datasets = METRIC_DEFS.filter(m => activeSweepMetrics.has(m.key)).map((m, i) => ({
+    label: m.label,
+    data: group.map(r => (r.summary[m.key] && r.summary[m.key].mean != null) ? r.summary[m.key].mean : null),
+    borderColor: colors[i % colors.length], backgroundColor: colors[i % colors.length],
+    tension: 0.25, spanGaps: true,
+  }));
+  state.charts.sweepChart = new Chart(canvas, {
+    type: "line", data: { labels: labels, datasets: datasets },
+    options: { responsive: true, scales: { y: { min: 0, max: 1 } },
+              plugins: { legend: { position: "bottom" } } },
+  });
+}
+
+function renderDivergenceChart(runs) {
+  destroyChart("divergenceChart");
+  const labels = runs.map(r => r.label);
+  const retrievalKeys = ["recall_at_k", "ndcg_at_k", "mrr", "context_precision"];
+  const genKeys = ["faithfulness", "answer_relevance"];
+  const avg = (r, keys) => {
+    const vals = keys.map(k => r.summary[k] && r.summary[k].mean).filter(v => v != null);
+    return vals.length ? vals.reduce((a,b) => a+b, 0) / vals.length : null;
+  };
+  state.charts.divergenceChart = new Chart($("#divergenceChart"), {
+    type: "bar",
+    data: { labels: labels, datasets: [
+      { label: "Retrieval-layer (avg)", data: runs.map(r => avg(r, retrievalKeys)), backgroundColor: "#4F7EFF" },
+      { label: "Generation-layer (avg)", data: runs.map(r => avg(r, genKeys)), backgroundColor: "#9B7EF0" },
+    ]},
+    options: { responsive: true, scales: { y: { min: 0, max: 1 } }, plugins: { legend: { position: "bottom" } } },
+  });
+}
+
+function renderCompareChart(runs) {
+  destroyChart("compareChart");
+  const labels = runs.map(r => r.label);
+  const colors = ["#4F7EFF", "#3DB87A", "#D4960A", "#E05B5B", "#9B7EF0", "#2FBFC4", "#F06AA6"];
+  const datasets = METRIC_DEFS.map((m, i) => ({
+    label: m.label,
+    data: runs.map(r => (r.summary[m.key] && r.summary[m.key].mean != null) ? r.summary[m.key].mean : null),
+    backgroundColor: colors[i % colors.length],
+  }));
+  state.charts.compareChart = new Chart($("#compareChart"), {
+    type: "bar",
+    data: { labels: labels, datasets: datasets },
+    options: { responsive: true, scales: { y: { min: 0, max: 1 } }, plugins: { legend: { position: "bottom" } } },
+  });
+}
+
+function renderLatencyChart(runs) {
+  destroyChart("latencyChart");
+  const points = runs.map(r => ({
+    x: (r.summary.total_ms && r.summary.total_ms.mean) || 0,
+    y: (r.summary.composite_score && r.summary.composite_score.mean) || 0,
+    r: 6 + 14 * ((r.summary.faithfulness && r.summary.faithfulness.mean) || 0),
+    label: r.label,
+  }));
+  state.charts.latencyChart = new Chart($("#latencyChart"), {
+    type: "bubble",
+    data: { datasets: [{ label: "Runs", data: points, backgroundColor: "rgba(79,126,255,0.55)" }] },
+    options: {
+      responsive: true,
+      scales: { x: { title: { display: true, text: "Total latency (ms)" } },
+               y: { title: { display: true, text: "Composite score" }, min: 0, max: 1 } },
+      plugins: { legend: { display: false },
+                tooltip: { callbacks: { label: function(ctx) {
+                  const p = points[ctx.dataIndex];
+                  return p.label + " \u2014 " + p.x.toFixed(0) + "ms, score " + p.y.toFixed(3);
+                } } } },
+    },
+  });
+}
+
+function esc(s) {
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c) {
+    return { "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c];
+  });
+}
+
+async function boot() {
+  $("#whoEmail").textContent = state.email || "";
+  try {
+    await loadOptions();
+    await loadDatasets();
+    await loadRuns();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+(function init() {
+  const token = sessionStorage.getItem(TOKEN_KEY), email = sessionStorage.getItem(EMAIL_KEY);
+  if (token && email) {
+    state.token = token; state.email = email;
+    hideGate();
+    boot();
+  } else {
+    showGate();
+  }
+})();
+</script>
+</body>
+</html>
