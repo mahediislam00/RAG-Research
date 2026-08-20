@@ -1,0 +1,1225 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>RAG Lab</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:ital,wght@0,300;0,400;0,700;1,300;1,400&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* Dark palette */
+    --bg: #0F1117;
+    --surface: #171B25;
+    --surface-2: #1E2333;
+    --border: #2A3045;
+    --border-strong: #374060;
+    --ink: #E8EAF0;
+    --muted: #7B849E;
+    --accent: #4F7EFF;
+    --accent-dim: rgba(79,126,255,0.12);
+    --accent-border: rgba(79,126,255,0.35);
+    --red: #E05B5B;
+    --red-dim: rgba(224,91,91,0.12);
+    --green: #3DB87A;
+    --green-dim: rgba(61,184,122,0.12);
+    --amber: #D4960A;
+    --serif: 'Merriweather', Georgia, serif;
+    --sans: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', ui-monospace, monospace;
+    --r: 8px;
+    --r-lg: 12px;
+  }
+  [data-theme="light"] {
+    --bg: #F4F6FB;
+    --surface: #FFFFFF;
+    --surface-2: #EEF1F8;
+    --border: #DDE3EF;
+    --border-strong: #C4CCDE;
+    --ink: #111827;
+    --muted: #6B7280;
+    --accent: #2F5FD8;
+    --accent-dim: rgba(47,95,216,0.08);
+    --accent-border: rgba(47,95,216,0.3);
+    --red: #DC2626;
+    --red-dim: rgba(220,38,38,0.08);
+    --green: #16A34A;
+    --green-dim: rgba(22,163,74,0.08);
+    --amber: #B45309;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; }
+  ::selection { background: var(--accent-dim); }
+  a { color: var(--accent); }
+
+  /* ── Layout ─────────────────────────────────── */
+  .shell {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    height: 100vh;
+  }
+  @media (max-width: 768px) {
+    .shell { grid-template-columns: 1fr; height: auto; }
+    .rail { border-right: none; border-bottom: 1px solid var(--border); }
+  }
+
+  /* ── Rail ───────────────────────────────────── */
+  .rail {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .rail-logo {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .logo-text {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--ink);
+    letter-spacing: -0.01em;
+  }
+  .logo-text span { color: var(--accent); }
+  .theme-toggle {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 15px;
+    transition: all .15s;
+    background: var(--surface-2);
+  }
+  .theme-toggle:hover { color: var(--ink); border-color: var(--border-strong); }
+
+  .rail-body { flex: 1; overflow-y: auto; padding: 0; }
+  .rail-section { padding: 16px 20px; border-bottom: 1px solid var(--border); }
+  .rail-section:last-child { border-bottom: none; }
+  .rail-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 10px;
+  }
+
+  /* ── Upload Zone ─────────────────────────────── */
+  .upload-btn-wrap { margin-bottom: 12px; }
+  .upload-btn {
+    width: 100%;
+    padding: 14px 18px;
+    border-radius: var(--r-lg);
+    border: 1.5px dashed var(--border-strong);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    transition: all .18s;
+    cursor: pointer;
+  }
+  .upload-btn:hover, .upload-btn.drag {
+    background: rgba(79,126,255,0.18);
+    border-color: var(--accent);
+    border-style: solid;
+  }
+  .upload-btn svg { flex: none; }
+  .upload-hint {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: center;
+    font-family: var(--mono);
+  }
+  input[type=file] { display: none; }
+  #uploadStatus {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+    margin-top: 6px;
+  }
+
+  /* ── Progress ────────────────────────────────── */
+  .progress { margin-top: 10px; }
+  .progress .track {
+    height: 4px;
+    background: var(--border);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .progress .bar {
+    height: 100%;
+    width: 0;
+    background: var(--accent);
+    transition: width .25s ease;
+    border-radius: 999px;
+  }
+  .progress .bar.err { background: var(--red); }
+  .progress .meta {
+    display: flex;
+    justify-content: space-between;
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+  .progress .meta .pct { color: var(--accent); font-weight: 500; }
+
+  /* ── Doc list ────────────────────────────────── */
+  .doc-list { display: flex; flex-direction: column; gap: 6px; }
+  .doc-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 9px 10px;
+    border-radius: var(--r);
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    transition: border-color .12s;
+  }
+  .doc-item:hover { border-color: var(--border-strong); }
+  .doc-item input[type=checkbox] { margin-top: 2px; accent-color: var(--accent); flex: none; }
+  .doc-meta { flex: 1; min-width: 0; }
+  .doc-name { font-size: 12.5px; font-weight: 600; word-break: break-word; line-height: 1.35; }
+  .doc-stat { font-family: var(--mono); font-size: 10.5px; color: var(--muted); margin-top: 1px; }
+  .doc-del {
+    color: var(--muted);
+    font-size: 16px;
+    line-height: 1;
+    padding: 1px 4px;
+    border-radius: 4px;
+    flex: none;
+    transition: color .12s, background .12s;
+  }
+  .doc-del:hover { color: var(--red); background: var(--red-dim); }
+  .empty-docs { font-size: 12px; color: var(--muted); font-style: italic; }
+
+  /* ── Chats (conversation list) ───────────────── */
+  .new-chat-btn {
+    width: 100%;
+    padding: 10px 14px;
+    border-radius: var(--r);
+    border: 1px solid var(--accent-border);
+    background: var(--accent-dim);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all .15s;
+    margin-bottom: 12px;
+  }
+  .new-chat-btn:hover { background: rgba(79,126,255,0.18); border-color: var(--accent); }
+  .chat-list { display: flex; flex-direction: column; gap: 4px; }
+  .chat-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-radius: var(--r);
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: background .12s, border-color .12s;
+  }
+  .chat-item:hover { background: var(--surface-2); border-color: var(--border); }
+  .chat-item.active { background: var(--accent-dim); border-color: var(--accent-border); }
+  .chat-item .ct {
+    flex: 1; min-width: 0;
+    font-size: 12.5px; font-weight: 500; color: var(--ink);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .chat-item.active .ct { color: var(--accent); }
+  .chat-item .cta {
+    flex: none; color: var(--muted); font-size: 13px; line-height: 1;
+    padding: 2px 5px; border-radius: 4px; opacity: 0; transition: opacity .12s, color .12s, background .12s;
+  }
+  .chat-item:hover .cta { opacity: 1; }
+  .chat-item .cta:hover { color: var(--ink); background: var(--border); }
+  .chat-item .cta.del:hover { color: var(--red); background: var(--red-dim); }
+  .chat-rename {
+    flex: 1; min-width: 0;
+    font-size: 12.5px; font-family: var(--sans);
+    background: var(--surface-2); color: var(--ink);
+    border: 1px solid var(--accent); border-radius: 5px; padding: 3px 6px;
+  }
+  .chat-rename:focus { outline: none; box-shadow: 0 0 0 2px var(--accent-dim); }
+  .empty-chats { font-size: 12px; color: var(--muted); font-style: italic; }
+
+  /* ── Main area ───────────────────────────────── */
+  .main {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    background: var(--bg);
+  }
+
+  /* Mode bar */
+  .modebar {
+    display: flex;
+    gap: 6px;
+    padding: 14px 22px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .modebar .scope-note {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    margin-left: auto;
+  }
+  .mode-btn {
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--ink);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 12.5px;
+    font-weight: 500;
+    transition: all .15s;
+  }
+  .mode-btn small { display: block; font-weight: 400; color: var(--muted); font-size: 10.5px; margin-top: 1px; }
+  .mode-btn[aria-pressed=true] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  .mode-btn[aria-pressed=true] small { color: rgba(255,255,255,0.65); }
+
+  /* Thread */
+  .thread { flex: 1; overflow-y: auto; padding: 28px 24px; scroll-behavior: smooth; }
+  .thread-inner { max-width: 760px; margin: 0 auto; }
+
+  /* Onboarding */
+  .onboarding { max-width: 540px; margin: 8vh auto 0; }
+  .onboarding-title {
+    font-family: var(--serif);
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--ink);
+    margin-bottom: 10px;
+  }
+  .onboarding-sub { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 28px; }
+
+  .steps { display: flex; flex-direction: column; gap: 0; margin-bottom: 28px; }
+  .step {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0;
+    border-top: 1px solid var(--border);
+  }
+  .step .n {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    font-weight: 500;
+    width: 20px;
+    flex: none;
+    margin-top: 2px;
+  }
+  .step p { font-size: 13px; color: var(--muted); }
+  .step b { color: var(--ink); font-weight: 600; }
+
+  /* FAQ chips */
+  .faq-label { font-family: var(--mono); font-size: 10px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; }
+  .faq-chip {
+    border: 1px solid var(--border-strong);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 999px;
+    padding: 6px 13px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all .15s;
+    text-align: left;
+    line-height: 1.3;
+  }
+  .faq-chip:hover { border-color: var(--accent); background: var(--accent-dim); color: var(--accent); }
+  .faq-chip:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* Messages */
+  .msg { margin-bottom: 24px; animation: fadeUp .22s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .msg { animation: none; } }
+
+  .msg-who {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 6px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .msg.user .bubble {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--r-lg);
+    padding: 12px 16px;
+    font-size: 14px;
+  }
+  .answered-by { color: var(--accent); font-weight: 600; }
+  .answer {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--r-lg);
+    padding: 16px 18px;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 14px;
+    line-height: 1.7;
+  }
+  .answer h4 { font-family: var(--serif); font-size: 16px; margin: 16px 0 6px; font-weight: 700; }
+  .answer strong { font-weight: 600; }
+  .cite {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-dim);
+    border: 1px solid var(--accent-border);
+    border-radius: 4px;
+    padding: 0 5px;
+    margin: 0 1px;
+    white-space: nowrap;
+    font-weight: 500;
+  }
+  .cursor {
+    display: inline-block;
+    width: 2px;
+    height: 15px;
+    background: var(--accent);
+    vertical-align: -2px;
+    animation: blink 1s steps(2) infinite;
+    border-radius: 1px;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Sources */
+  .sources {
+    margin-top: 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--r);
+    background: var(--surface);
+    overflow: hidden;
+  }
+  .sources summary {
+    cursor: pointer;
+    padding: 9px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: .05em;
+    text-transform: uppercase;
+    color: var(--muted);
+    user-select: none;
+    list-style: none;
+  }
+  .sources summary::-webkit-details-marker { display: none; }
+  .sources summary::before { content: '›  '; }
+  .sources[open] summary::before { content: '↓  '; }
+  .passage { border-top: 1px solid var(--border); padding: 10px 14px; }
+  .passage .head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 5px; }
+  .passage .src { font-family: var(--mono); font-size: 11px; color: var(--ink); font-weight: 600; }
+  .passage .sec { font-size: 11px; color: var(--muted); }
+  .badge {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .badge.both { background: var(--green-dim); color: var(--green); }
+  .badge.semantic { background: var(--accent-dim); color: var(--accent); }
+  .badge.keyword { background: var(--red-dim); color: var(--red); }
+  .passage .scores { font-family: var(--mono); font-size: 10px; color: var(--muted); margin-left: auto; }
+  .passage .text { font-size: 12.5px; color: var(--muted); max-height: 72px; overflow: hidden; line-height: 1.5; position: relative; }
+  .passage.open .text { max-height: none; }
+  .passage .toggle { font-family: var(--mono); font-size: 11px; color: var(--accent); padding: 3px 0 0; }
+
+  .errbox {
+    background: var(--red-dim);
+    border: 1px solid rgba(224,91,91,0.3);
+    border-left: 3px solid var(--red);
+    border-radius: var(--r);
+    padding: 12px 15px;
+    color: var(--red);
+    font-size: 13px;
+  }
+
+  /* Copy btn */
+  .copybtn {
+    margin-left: auto;
+    border: 1px solid var(--border-strong);
+    background: var(--surface-2);
+    color: var(--muted);
+    border-radius: 5px;
+    padding: 2px 9px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: .04em;
+    text-transform: uppercase;
+    transition: all .15s;
+  }
+  .copybtn:hover { color: var(--accent); border-color: var(--accent); background: var(--accent-dim); }
+  .copybtn.copied { color: var(--green); border-color: var(--green); background: var(--green-dim); }
+
+  /* Suggest bar */
+  .suggestbar { max-width: 760px; margin: 0 auto 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+
+  /* Composer */
+  .composer {
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    padding: 14px 22px;
+  }
+  .composer-inner {
+    max-width: 760px;
+    margin: 0 auto;
+    display: flex;
+    gap: 10px;
+    align-items: flex-end;
+  }
+  textarea {
+    flex: 1;
+    resize: none;
+    border: 1px solid var(--border-strong);
+    border-radius: var(--r);
+    padding: 11px 14px;
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.5;
+    max-height: 150px;
+    background: var(--surface-2);
+    color: var(--ink);
+    transition: border-color .15s, box-shadow .15s;
+  }
+  textarea::placeholder { color: var(--muted); }
+  textarea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  .send-btn {
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--r);
+    padding: 11px 20px;
+    font-weight: 600;
+    font-size: 13.5px;
+    height: 44px;
+    white-space: nowrap;
+    transition: opacity .15s;
+  }
+  .send-btn:disabled { opacity: .4; cursor: not-allowed; }
+  .send-btn:hover:not(:disabled) { opacity: .88; }
+  .composer .note {
+    max-width: 760px;
+    margin: 7px auto 0;
+    font-size: 11px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
+
+  /* ── Auth gate ── */
+  .gate { position: fixed; inset: 0; z-index: 100; display: grid; place-items: center;
+          background: var(--bg); padding: 24px; }
+  .gate[hidden] { display: none; }
+  .gate-card { width: 100%; max-width: 380px; background: var(--surface);
+               border: 1px solid var(--border); border-radius: var(--r-lg); padding: 28px; }
+  .gate-card h1 { font-family: var(--serif); font-size: 22px; font-weight: 700; margin-bottom: 6px; }
+  .gate-card p.sub { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+  .gate-card label { display: block; font-size: 12px; color: var(--muted);
+                     margin: 12px 0 5px; letter-spacing: .03em; text-transform: uppercase; }
+  .gate-card input { width: 100%; padding: 10px 12px; background: var(--surface-2);
+                     border: 1px solid var(--border); border-radius: var(--r);
+                     color: var(--ink); font-family: var(--sans); font-size: 14px; }
+  .gate-card input:focus { outline: 2px solid var(--accent-border); outline-offset: 1px; }
+  .gate-btn { width: 100%; margin-top: 20px; padding: 11px; background: var(--accent);
+              color: #fff; border: 0; border-radius: var(--r); font-family: var(--sans);
+              font-size: 14px; font-weight: 600; cursor: pointer; }
+  .gate-btn:disabled { opacity: .55; cursor: default; }
+  .gate-switch { margin-top: 14px; text-align: center; font-size: 13px; color: var(--muted); }
+  .gate-switch button { background: none; border: 0; color: var(--accent); cursor: pointer;
+                        font-family: var(--sans); font-size: 13px; padding: 0; }
+  .gate-err { margin-top: 14px; padding: 9px 11px; background: var(--red-dim);
+              border: 1px solid var(--red); border-radius: var(--r);
+              color: var(--red); font-size: 13px; }
+  .gate-err[hidden] { display: none; }
+  .gate-note { margin-top: 18px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  /* Account row in the rail */
+  .account { display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+             border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); }
+  .account .who { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+  .account button { background: none; border: 1px solid var(--border); border-radius: var(--r);
+                    color: var(--muted); cursor: pointer; font-family: var(--sans);
+                    font-size: 12px; padding: 4px 9px; }
+  .account button:hover { color: var(--ink); border-color: var(--border-strong); }
+  .account a.evallink { background: none; border: 1px solid var(--border); border-radius: var(--r);
+                        color: var(--muted); font-family: var(--sans); font-size: 12px;
+                        padding: 4px 9px; text-decoration: none; }
+  .account a.evallink:hover { color: var(--accent); border-color: var(--accent-border); background: var(--accent-dim); }
+</style>
+</head>
+<body>
+
+<!-- Sign-in gate. Nothing behind it is fetched until a token exists. -->
+<div class="gate" id="gate">
+  <div class="gate-card">
+    <h1 id="gateTitle">Sign in</h1>
+    <p class="sub" id="gateSub">Your documents are private to your account.</p>
+
+    <label for="gateEmail">Email</label>
+    <input id="gateEmail" type="email" autocomplete="username" placeholder="you@agency.gov">
+
+    <label for="gatePassword">Password</label>
+    <input id="gatePassword" type="password" autocomplete="current-password" placeholder="••••••••••">
+
+    <button class="gate-btn" id="gateSubmit">Sign in</button>
+    <div class="gate-err" id="gateErr" hidden></div>
+
+    <div class="gate-switch">
+      <span id="gateSwitchText">No account yet?</span>
+      <button type="button" id="gateSwitch">Create one</button>
+    </div>
+    <p class="gate-note" id="gateHint" hidden>At least 10 characters, with letters and a digit.</p>
+  </div>
+</div>
+
+<div class="shell">
+  <!-- ── Rail ── -->
+  <aside class="rail">
+    <div class="rail-logo">
+      <span class="logo-text">RAG<span>Lab</span></span>
+      <button class="theme-toggle" id="themeToggle" title="Toggle theme">☾</button>
+    </div>
+
+    <div class="account">
+      <span class="who" id="acctEmail">—</span>
+      <a class="evallink" href="/evaluate" title="Evaluation Lab: tune and benchmark the RAG pipeline">Eval Lab</a>
+      <button type="button" id="signOut">Sign out</button>
+    </div>
+
+    <div class="rail-body">
+      <!-- Conversations -->
+      <div class="rail-section">
+        <button class="new-chat-btn" id="newChat" type="button">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          New chat
+        </button>
+        <div class="rail-label">Conversations</div>
+        <div class="chat-list" id="chats">
+          <div class="empty-chats">No conversations yet.</div>
+        </div>
+      </div>
+
+      <!-- Upload -->
+      <div class="rail-section">
+        <div class="rail-label">Upload Documents</div>
+        <div class="upload-btn-wrap">
+          <label class="upload-btn" id="drop">
+            <input type="file" id="file" accept=".pdf,.docx,.txt,.md" multiple>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="17 8 12 3 7 8"/>
+              <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            Upload Files
+          </label>
+        </div>
+        <div class="upload-hint">PDF · DOCX · TXT — RFPs, SOWs, solicitations</div>
+        <div id="uploadStatus"></div>
+        <div id="uploadProgress"></div>
+      </div>
+
+      <!-- Indexed docs -->
+      <div class="rail-section">
+        <div class="rail-label">Indexed Documents <span id="docScope" style="color:var(--accent)"></span></div>
+        <div class="doc-list" id="docs">
+          <div class="empty-docs">No documents indexed yet.</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main">
+    <div class="modebar">
+      <button class="mode-btn" data-mode="qa" aria-pressed="true">
+        Q&amp;A
+        <small>Answer from sources</small>
+      </button>
+      <button class="mode-btn" data-mode="proposal" aria-pressed="false">
+        Proposal
+        <small>Draft a section</small>
+      </button>
+      <button class="mode-btn" data-mode="sow" aria-pressed="false">
+        SOW / PWS
+        <small>Draft scope &amp; tasks</small>
+      </button>
+      <span class="scope-note" id="scopeNote">No documents indexed</span>
+    </div>
+
+    <div class="thread" id="thread">
+      <div class="onboarding" id="onboarding">
+        <h1 class="onboarding-title">Ground every answer in your solicitation.</h1>
+        <p class="onboarding-sub">Upload your RFP, SOW, or reference docs, then ask questions or draft sections. Every answer is built from retrieved passages with file-and-page citations you can verify.</p>
+
+        <div class="steps">
+          <div class="step"><span class="n">01</span><p><b>Upload</b> the RFP, SOW, and any reference material. Each file is parsed and chunked by section and page.</p></div>
+          <div class="step"><span class="n">02</span><p><b>Index</b> happens automatically — semantic embeddings plus a BM25 keyword index, so clause numbers and meaning are both searchable.</p></div>
+          <div class="step"><span class="n">03</span><p><b>Ask</b> in Q&amp;A, Proposal, or SOW mode. Retrieved passages are fused and cited inline.</p></div>
+        </div>
+
+        <div class="faq-label">Frequently asked — tap to ask</div>
+        <div class="chips" id="faqChips"></div>
+      </div>
+    </div>
+
+    <div class="composer">
+      <div class="suggestbar" id="suggestBar"></div>
+      <div class="composer-inner">
+        <textarea id="q" rows="1" placeholder="Ask about the solicitation, or describe the section to draft…"></textarea>
+        <button class="send-btn" id="send">Ask</button>
+      </div>
+      <div class="note">Outputs are drafts for review. Confirm every clause, number, and citation against the source before use.</div>
+    </div>
+  </main>
+</div>
+
+<script>
+const $ = s => document.querySelector(s);
+const state = { mode: "qa", docs: [], selected: new Set(), busy: false,
+                token: null, email: null, chatId: null, chats: [] };
+
+/* ── Auth ──
+   The token is the only thing that identifies the user to the API. It lives in
+   sessionStorage (cleared when the tab closes) rather than localStorage, and is
+   sent as an Authorization header on every request — the server reads user_id
+   from the token's signature, never from anything we put in a body. */
+const TOKEN_KEY = "raglab.token";
+const EMAIL_KEY = "raglab.email";
+
+function setSession(token, email) {
+  state.token = token; state.email = email;
+  sessionStorage.setItem(TOKEN_KEY, token);
+  sessionStorage.setItem(EMAIL_KEY, email);
+  $("#acctEmail").textContent = email;
+}
+function clearSession() {
+  state.token = null; state.email = null; state.docs = []; state.selected = new Set();
+  state.chatId = null; state.chats = [];
+  sessionStorage.removeItem(TOKEN_KEY); sessionStorage.removeItem(EMAIL_KEY);
+}
+
+/* Every call to the API goes through here. A 401 means the session is gone,
+   so we drop back to the gate instead of rendering someone else's empty state. */
+async function api(path, opts = {}) {
+  const headers = new Headers(opts.headers || {});
+  if (state.token) headers.set("Authorization", "Bearer " + state.token);
+  const r = await fetch(path, { ...opts, headers });
+  if (r.status === 401) { clearSession(); showGate(); throw new Error("Session ended. Sign in again."); }
+  return r;
+}
+
+let gateMode = "login";
+function showGate() {
+  $("#gate").hidden = false;
+  document.querySelector(".shell").style.filter = "";
+  $("#thread").querySelectorAll(".msg").forEach(m => m.remove());
+}
+function hideGate() { $("#gate").hidden = true; }
+
+function renderGate() {
+  const isLogin = gateMode === "login";
+  $("#gateTitle").textContent = isLogin ? "Sign in" : "Create account";
+  $("#gateSubmit").textContent = isLogin ? "Sign in" : "Create account";
+  $("#gateSwitchText").textContent = isLogin ? "No account yet?" : "Already have an account?";
+  $("#gateSwitch").textContent = isLogin ? "Create one" : "Sign in";
+  $("#gateHint").hidden = isLogin;
+  $("#gatePassword").autocomplete = isLogin ? "current-password" : "new-password";
+  $("#gateErr").hidden = true;
+}
+$("#gateSwitch").addEventListener("click", () => {
+  gateMode = gateMode === "login" ? "register" : "login";
+  renderGate();
+});
+$("#gatePassword").addEventListener("keydown", e => { if (e.key === "Enter") submitGate(); });
+$("#gateSubmit").addEventListener("click", submitGate);
+
+async function submitGate() {
+  const email = $("#gateEmail").value.trim();
+  const password = $("#gatePassword").value;
+  const err = $("#gateErr"), btn = $("#gateSubmit");
+  if (!email || !password) { err.textContent = "Enter an email and password."; err.hidden = false; return; }
+  btn.disabled = true; err.hidden = true;
+  try {
+    const r = await fetch("/api/auth/" + gateMode, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+    const j = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(j.detail || "Could not sign in.");
+    setSession(j.token, j.user.email);
+    $("#gatePassword").value = "";
+    hideGate();
+    await Promise.all([loadDocs(), loadChats()]);
+  } catch (e) {
+    err.textContent = e.message; err.hidden = false;
+  } finally { btn.disabled = false; }
+}
+
+$("#signOut").addEventListener("click", async () => {
+  try { await api("/api/auth/logout", { method: "POST" }); } catch {}
+  clearSession();
+  renderGate();
+  showGate();
+  $("#docs").innerHTML = '<div class="empty-docs">No documents indexed yet.</div>';
+  $("#chats").innerHTML = '<div class="empty-chats">No conversations yet.</div>';
+});
+
+/* ── Theme ── */
+const themeBtn = $("#themeToggle");
+themeBtn.addEventListener("click", () => {
+  const html = document.documentElement;
+  const isDark = html.dataset.theme === "dark";
+  html.dataset.theme = isDark ? "light" : "dark";
+  themeBtn.textContent = isDark ? "☀" : "☾";
+});
+
+/* ── FAQ ── */
+const FAQS = [
+  "Is it electronically submittable?",
+  "Does it require a mandatory pre-bid meeting?",
+  "When is the deadline?",
+  "What are the mandatory prerequisites and experience requirements?",
+  "Which sections must the proposal contain?",
+];
+
+function renderFaqs() {
+  const chipHtml = FAQS.map(q =>
+    `<button class="faq-chip" data-q="${esc(q)}">${esc(q)}</button>`).join("");
+  const chips = $("#faqChips"); if (chips) chips.innerHTML = chipHtml;
+  const bar = $("#suggestBar"); if (bar) bar.innerHTML = chipHtml;
+  syncFaqState();
+}
+function syncFaqState() {
+  const disabled = !state.docs.length || state.busy;
+  document.querySelectorAll(".faq-chip").forEach(c => { c.disabled = disabled; });
+}
+document.addEventListener("click", e => {
+  const chip = e.target.closest(".faq-chip");
+  if (!chip || chip.disabled) return;
+  qbox.value = chip.dataset.q;
+  qbox.dispatchEvent(new Event("input"));
+  ask();
+});
+
+/* ── Helpers ── */
+function esc(s) {
+  return s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+function renderAnswer(text) {
+  let h = esc(text);
+  h = h.replace(/\[([^\]\[]{1,80}?\sp{1,2}\.?\s?[\dpP\-–.,\s]+)\]/g, m => `<span class="cite">${m}</span>`);
+  h = h.replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+  h = h.replace(/^###?\s+(.+)$/gm, "<h4>$1</h4>");
+  return h;
+}
+
+/* ── Documents ── */
+async function loadDocs() {
+  const r = await api("/api/documents");
+  const j = await r.json();
+  state.docs = j.documents;
+  const el = $("#docs");
+  if (!state.docs.length) {
+    el.innerHTML = '<div class="empty-docs">No documents indexed yet.</div>';
+  } else {
+    el.innerHTML = state.docs.map(d => `
+      <div class="doc-item">
+        <input type="checkbox" data-id="${d.doc_id}" ${state.selected.size === 0 || state.selected.has(d.doc_id) ? "checked" : ""}>
+        <div class="doc-meta">
+          <div class="doc-name">${esc(d.filename)}</div>
+          <div class="doc-stat">${d.pages} pp · ${d.chunks} chunks</div>
+        </div>
+        <button class="doc-del" data-del="${d.doc_id}" title="Remove">×</button>
+      </div>`).join("");
+  }
+  updateScope();
+}
+function updateScope() {
+  const total = state.docs.length;
+  const sel = state.selected.size;
+  const txt = (sel === 0 || sel === total) ? `All ${total} doc${total !== 1 ? "s" : ""}` : `${sel} of ${total}`;
+  $("#scopeNote").textContent = total ? `Searching ${txt}` : "No documents indexed";
+  $("#docScope").textContent = total ? `(${total})` : "";
+  syncFaqState();
+}
+$("#docs").addEventListener("change", e => {
+  if (e.target.matches("input[type=checkbox]")) {
+    state.selected = new Set([...document.querySelectorAll('#docs input:checked')].map(c => c.dataset.id));
+    if (state.selected.size === state.docs.length) state.selected = new Set();
+    updateScope();
+  }
+});
+$("#docs").addEventListener("click", async e => {
+  const id = e.target.dataset.del; if (!id) return;
+  if (!confirm("Remove this document from the index?")) return;
+  await api("/api/documents/" + id, { method: "DELETE" });
+  state.selected.delete(id); loadDocs();
+});
+
+/* Snapshot the onboarding pane so "New chat" can restore it after it has been
+   removed by the first message. Captured at load, before FAQ chips are filled;
+   newChat() calls renderFaqs() again to repopulate them. */
+const ONBOARDING_HTML = document.getElementById("onboarding")?.outerHTML || "";
+
+/* ── Conversations ──
+   The chat list is the user's own history: /api/chats returns only chats owned
+   by the token's user, ordered most-recent-first. A new chat is created lazily
+   — "New chat" just clears the view and unsets chatId; the row is created by
+   the first /api/chat turn, which reports its id back in a "chat" event. That
+   keeps empty conversations from piling up in the sidebar. */
+async function loadChats() {
+  const r = await api("/api/chats");
+  const j = await r.json();
+  state.chats = j.chats || [];
+  renderChats();
+}
+function renderChats() {
+  const el = $("#chats");
+  if (!state.chats.length) {
+    el.innerHTML = '<div class="empty-chats">No conversations yet.</div>';
+    return;
+  }
+  el.innerHTML = state.chats.map(c => `
+    <div class="chat-item ${c.chat_id === state.chatId ? "active" : ""}" data-chat="${esc(c.chat_id)}">
+      <span class="ct" title="${esc(c.title)}">${esc(c.title)}</span>
+      <button class="cta ren" data-ren="${esc(c.chat_id)}" title="Rename">✎</button>
+      <button class="cta del" data-del-chat="${esc(c.chat_id)}" title="Delete">×</button>
+    </div>`).join("");
+}
+
+function clearThread() {
+  thread.querySelectorAll(".msg").forEach(m => m.remove());
+}
+
+/* Start a fresh conversation: clear the view, drop chatId. The onboarding pane
+   was removed when the first message was added, so re-render it here. */
+function newChat() {
+  if (state.busy) return;
+  state.chatId = null;
+  clearThread();
+  const inner = thread.querySelector(".thread-inner");
+  if (inner) inner.remove();
+  if (!thread.querySelector("#onboarding")) {
+    thread.insertAdjacentHTML("afterbegin", ONBOARDING_HTML);
+    renderFaqs();
+  }
+  renderChats();
+  qbox.focus();
+}
+$("#newChat").addEventListener("click", newChat);
+
+/* Restore a saved conversation into the thread. Sources aren't persisted (they
+   are ephemeral retrieval artifacts), so restored assistant turns show the
+   grounded answer text without the collapsible sources panel. */
+async function selectChat(chatId) {
+  if (state.busy || chatId === state.chatId) return;
+  let data;
+  try {
+    const r = await api("/api/chats/" + chatId);
+    data = await r.json();
+    if (!r.ok) throw new Error(data.detail || "Could not load chat.");
+  } catch (e) { alert(e.message); return; }
+
+  state.chatId = data.chat.chat_id;
+  // Restore the conversation's pinned document scope onto the checkboxes.
+  const ids = data.chat.doc_ids;
+  state.selected = ids && ids.length ? new Set(ids) : new Set();
+
+  clearThread();
+  $("#onboarding")?.remove();
+  for (const m of data.messages) {
+    if (m.role === "user") {
+      addMsg(`<div class="msg-who">Request</div><div class="bubble">${esc(m.content)}</div>`, "user");
+    } else {
+      const by = m.model_label ? ` <span class="answered-by">· ${esc(m.model_label)}</span>` : "";
+      addMsg(`<div class="msg-who">RAG Lab${by}
+        <button class="copybtn" type="button">Copy</button></div>
+        <div class="answer">${renderAnswer(m.content)}</div>`, "bot");
+      const last = threadInner().lastElementChild;
+      if (last) last.dataset.answer = m.content;
+    }
+  }
+  renderChats();
+  loadDocs();   // re-render checkboxes against the restored scope
+  thread.scrollTop = thread.scrollHeight;
+}
+
+async function renameChat(chatId) {
+  const item = $("#chats").querySelector(`[data-chat="${CSS.escape(chatId)}"]`);
+  if (!item) return;
+  const label = item.querySelector(".ct");
+  const current = state.chats.find(c => c.chat_id === chatId)?.title || "";
+  const input = document.createElement("input");
+  input.className = "chat-rename"; input.value = current; input.maxLength = 120;
+  label.replaceWith(input); input.focus(); input.select();
+
+  let done = false;
+  const commit = async (save) => {
+    if (done) return; done = true;
+    const title = input.value.trim();
+    if (save && title && title !== current) {
+      try {
+        const r = await api("/api/chats/" + chatId, {
+          method: "PATCH", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title }) });
+        if (r.ok) { const j = await r.json();
+          const c = state.chats.find(x => x.chat_id === chatId); if (c) c.title = j.chat.title; }
+      } catch {}
+    }
+    renderChats();
+  };
+  input.addEventListener("keydown", e => {
+    if (e.key === "Enter") { e.preventDefault(); commit(true); }
+    else if (e.key === "Escape") { commit(false); }
+  });
+  input.addEventListener("blur", () => commit(true));
+}
+
+async function deleteChat(chatId) {
+  if (!confirm("Delete this conversation? This cannot be undone.")) return;
+  try { await api("/api/chats/" + chatId, { method: "DELETE" }); } catch (e) { alert(e.message); return; }
+  state.chats = state.chats.filter(c => c.chat_id !== chatId);
+  if (state.chatId === chatId) { state.chatId = null; newChat(); }
+  else renderChats();
+}
+
+$("#chats").addEventListener("click", e => {
+  const ren = e.target.closest("[data-ren]");
+  if (ren) { e.stopPropagation(); renameChat(ren.dataset.ren); return; }
+  const del = e.target.closest("[data-del-chat]");
+  if (del) { e.stopPropagation(); deleteChat(del.dataset.delChat); return; }
+  const item = e.target.closest("[data-chat]");
+  if (item) selectChat(item.dataset.chat);
+});
+
+/* ── Upload ── */
+const drop = $("#drop"), fileInput = $("#file");
+["dragenter", "dragover"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add("drag"); }));
+["dragleave", "drop"].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove("drag"); }));
+drop.addEventListener("drop", e => uploadFiles(e.dataTransfer.files));
+fileInput.addEventListener("change", e => uploadFiles(e.target.files));
+
+async function uploadFiles(files) {
+  const prog = $("#uploadProgress");
+  for (const f of files) {
+    $("#uploadStatus").textContent = "";
+    prog.innerHTML = `<div class="progress">
+      <div class="track"><div class="bar" id="pbar"></div></div>
+      <div class="meta"><span id="pstage">Starting…</span><span class="pct" id="ppct">0%</span></div>
+    </div>`;
+    const bar = $("#pbar"), stage = $("#pstage"), pct = $("#ppct");
+    const setPct = (p, s) => { bar.style.width = p + "%"; pct.textContent = p + "%"; if (s) stage.textContent = s; };
+
+    const fd = new FormData(); fd.append("file", f);
+    try {
+      const r = await api("/api/upload", { method: "POST", body: fd });
+      if (!r.ok && !r.body) {
+        let msg = "Upload failed"; try { msg = (await r.json()).detail || msg; } catch {}
+        bar.classList.add("err"); stage.textContent = "⚠ " + msg; continue;
+      }
+      const reader = r.body.getReader(); const dec = new TextDecoder(); let nl = "";
+      let done = false;
+      while (!done) {
+        const { value, done: rd } = await reader.read(); if (rd) break;
+        nl += dec.decode(value, { stream: true });
+        const blocks = nl.split("\n\n"); nl = blocks.pop();
+        for (const block of blocks) {
+          const line = block.split("\n").find(l => l.startsWith("data:")); if (!line) continue;
+          let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+          if (ev.type === "progress") { setPct(ev.percent, ev.stage); }
+          else if (ev.type === "done") {
+            setPct(100, "Indexed"); done = true;
+            $("#uploadStatus").textContent = `Indexed ${ev.filename} — ${ev.pages} pp, ${ev.chunks} chunks`;
+            await loadDocs();
+          } else if (ev.type === "error") {
+            done = true; bar.classList.add("err"); stage.textContent = "⚠ " + (ev.message || "Indexing failed");
+          }
+        }
+      }
+    } catch (err) { bar.classList.add("err"); stage.textContent = "⚠ " + err.message; }
+    if (!bar.classList.contains("err")) {
+      setTimeout(() => { if (prog.querySelector("#pbar") === bar) prog.innerHTML = ""; }, 1800);
+    }
+  }
+  fileInput.value = "";
+  setTimeout(() => { if ($("#uploadStatus")) $("#uploadStatus").textContent = ""; }, 6000);
+}
+
+/* ── Mode ── */
+document.querySelectorAll(".mode-btn").forEach(b => b.addEventListener("click", () => {
+  document.querySelectorAll(".mode-btn").forEach(x => x.setAttribute("aria-pressed", "false"));
+  b.setAttribute("aria-pressed", "true");
+  state.mode = b.dataset.mode;
+}));
+
+/* ── Chat ── */
+const thread = $("#thread"), qbox = $("#q");
+qbox.addEventListener("input", () => { qbox.style.height = "auto"; qbox.style.height = Math.min(qbox.scrollHeight, 150) + "px"; });
+qbox.addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ask(); } });
+$("#send").addEventListener("click", ask);
+
+function threadInner() {
+  let inner = thread.querySelector(".thread-inner");
+  if (!inner) { inner = document.createElement("div"); inner.className = "thread-inner"; thread.appendChild(inner); }
+  return inner;
+}
+function addMsg(html, cls) {
+  $("#onboarding")?.remove();
+  const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html;
+  threadInner().appendChild(d);
+  thread.scrollTop = thread.scrollHeight;
+  return d;
+}
+
+function sourcesHtml(passages) {
+  if (!passages.length) return "";
+  const rows = passages.map((p, i) => {
+    const loc = p.page_start === p.page_end ? `p.${p.page_start}` : `pp.${p.page_start}-${p.page_end}`;
+    return `<div class="passage">
+      <div class="head">
+        <span class="src">[${i+1}] ${esc(p.filename)} ${loc}</span>
+        ${p.section ? `<span class="sec">${esc(p.section)}</span>` : ""}
+        <span class="badge ${p.matched_by}">${p.matched_by}</span>
+        <span class="scores">rrf ${p.fused_score} · sem ${p.dense_score} · bm25 ${p.bm25_score}</span>
+      </div>
+      <div class="text">${esc(p.text)}</div>
+      <button class="toggle">show full passage</button>
+    </div>`;
+  }).join("");
+  return `<details class="sources"><summary>Retrieved sources — ${passages.length} passages</summary>${rows}</details>`;
+}
+
+async function ask() {
+  const q = qbox.value.trim(); if (!q || state.busy) return;
+  if (!state.docs.length) { alert("Upload at least one document first."); return; }
+  state.busy = true; $("#send").disabled = true; syncFaqState();
+  addMsg(`<div class="msg-who">Request</div><div class="bubble">${esc(q)}</div>`, "user");
+  qbox.value = ""; qbox.style.height = "auto";
+
+  const bot = addMsg(`<div class="msg-who">RAG Lab <span class="answered-by" id="byline"></span>
+    <button class="copybtn" type="button" hidden>Copy</button></div>
+    <div class="answer" id="ans"><span class="cursor"></span></div>`, "bot");
+  const ansEl = bot.querySelector("#ans"), byline = bot.querySelector("#byline");
+  const copyBtn = bot.querySelector(".copybtn");
+  let buf = "";
+
+  const doc_ids = state.selected.size ? [...state.selected] : null;
+  try {
+    const r = await api("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q, doc_ids, mode: state.mode, chat_id: state.chatId }) });
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let nl = "";
+    while (true) {
+      const { value, done } = await reader.read(); if (done) break;
+      nl += dec.decode(value, { stream: true });
+      const lines = nl.split("\n\n"); nl = lines.pop();
+      for (const block of lines) {
+        const line = block.split("\n").find(l => l.startsWith("data:")); if (!line) continue;
+        let ev; try { ev = JSON.parse(line.slice(5).trim()); } catch { continue; }
+        if (ev.type === "chat") {
+          // The server tells us which conversation this turn belongs to. For a
+          // brand-new chat, adopt the id so the next turn continues it.
+          state.chatId = ev.chat_id;
+        } else if (ev.type === "sources") {
+          if (ev.passages.length) { ansEl.insertAdjacentHTML("beforebegin", sourcesHtml(ev.passages)); bot.appendChild(bot.querySelector(".sources")); }
+        } else if (ev.type === "model") { byline.textContent = "· " + ev.label;
+        } else if (ev.type === "token") { buf += ev.text; ansEl.innerHTML = renderAnswer(buf) + '<span class="cursor"></span>'; thread.scrollTop = thread.scrollHeight;
+        } else if (ev.type === "error") { ansEl.outerHTML = `<div class="errbox">${esc(ev.message)}</div>`;
+        }
+      }
+    }
+    if (bot.querySelector("#ans")) ansEl.innerHTML = renderAnswer(buf);
+    if (buf.trim() && copyBtn) { bot.dataset.answer = buf; copyBtn.hidden = false; }
+  } catch (err) {
+    if (bot.querySelector("#ans")) ansEl.outerHTML = `<div class="errbox">Connection error: ${esc(err.message)}</div>`;
+  } finally {
+    state.busy = false; $("#send").disabled = false; syncFaqState();
+    // Refresh the sidebar: a new chat needs to appear, an existing one needs to
+    // jump to the top with its (possibly auto-generated) title.
+    try { await loadChats(); } catch {}
+  }
+}
+
+thread.addEventListener("click", e => {
+  if (e.target.classList.contains("toggle")) {
+    const p = e.target.closest(".passage"); p.classList.toggle("open");
+    e.target.textContent = p.classList.contains("open") ? "show less" : "show full passage";
+  }
+});
+
+thread.addEventListener("click", async e => {
+  const btn = e.target.closest(".copybtn"); if (!btn) return;
+  const msg = btn.closest(".msg"); const text = msg?.dataset.answer || "";
+  if (!text) return;
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+    } else {
+      const ta = document.createElement("textarea"); ta.value = text;
+      ta.style.position = "fixed"; ta.style.opacity = "0"; document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); ta.remove();
+    }
+    btn.textContent = "Copied"; btn.classList.add("copied");
+    setTimeout(() => { btn.textContent = "Copy"; btn.classList.remove("copied"); }, 1600);
+  } catch { btn.textContent = "Copy failed"; setTimeout(() => btn.textContent = "Copy", 1600); }
+});
+
+/* ── Init ── */
+renderFaqs();
+renderGate();
+(async () => {
+  const token = sessionStorage.getItem(TOKEN_KEY);
+  if (!token) { showGate(); return; }
+  state.token = token;
+  try {
+    const r = await api("/api/auth/me");     // proves the token is still live
+    const me = await r.json();
+    setSession(token, me.email);
+    hideGate();
+    await Promise.all([loadDocs(), loadChats()]);
+  } catch { clearSession(); showGate(); }
+})();
+</script>
+</body>
+</html>
